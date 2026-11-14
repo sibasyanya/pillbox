@@ -257,6 +257,10 @@ jobs:
           draft: false
           prerelease: false
 
+      - name: Purge CDN Cache for Instant In-App Update Detection
+        run: |
+          curl -s "https://purge.jsdelivr.net/gh/${{ github.repository }}@main/CHANGELOG.md" || true
+
       - name: Send Telegram Release Notification
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -288,13 +292,15 @@ jobs:
 
           release_url = f"https://github.com/{repo}/releases/tag/{tag}"
           apk_url = f"https://github.com/{repo}/releases/download/{tag}/{apk_name}"
+          mirror_apk_url = f"https://ghfast.top/{apk_url}"
 
           text = (
               f"💊 <b>Таблетница — обновление {tag}</b>\n\n"
               f"{notes}\n\n"
               f"📥 <a href=\"{apk_url}\">Скачать APK ({apk_name})</a>\n"
+              f"⚡ <a href=\"{mirror_apk_url}\">Быстрое зеркало APK (без VPN)</a>\n"
               f"🔗 <a href=\"{release_url}\">Страница релиза на GitHub</a>\n\n"
-              f"<i>Также обновление доступно прямо внутри приложения («Настройки» → «Обновление приложения»).</i>"
+              f"<i>Обновление устанавливается поверх текущей версии («Настройки» → «Обновление приложения»).</i>"
           )
 
           payload = {
