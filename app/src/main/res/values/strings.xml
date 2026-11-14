@@ -1,0 +1,112 @@
+<resources>
+    <string name="app_name">Таблетница</string>
+    <string name="app_subtitle">Фазовый контроль приема препаратов и процедур</string>
+
+    <!-- Навигация -->
+    <string name="nav_today">Сегодня</string>
+    <string name="nav_builder">Новый курс</string>
+    <string name="nav_courses">Все курсы</string>
+    <string name="nav_settings">Настройки</string>
+
+    <!-- Экран Сегодня -->
+    <string name="today_title">Расписание на день</string>
+    <string name="today_date_today">Сегодня</string>
+    <string name="today_prev_day">Предыдущий день</string>
+    <string name="today_next_day">Следующий день</string>
+    <string name="today_return_to_today">Вернуться к сегодня</string>
+    <string name="today_progress_title">Соблюдение графика</string>
+    <string name="today_progress_summary">Выполнено %1$d из %2$d приемов (%3$d%%)</string>
+    <string name="today_all_completed">Все назначения на выбранный день выполнены</string>
+    <string name="today_phase_badge">Фаза %1$d из %2$d, день %3$d из %4$d</string>
+    <string name="today_btn_take">Принято</string>
+    <string name="today_btn_taken_done">Принято ✓</string>
+    <string name="today_btn_skip">Не принято</string>
+    <string name="today_btn_skipped_done">Не принято ✕</string>
+    <string name="today_btn_undo">Отменить отметку</string>
+    <string name="today_edit_course">Изменить курс</string>
+    <string name="today_empty_title">На этот день приемов нет</string>
+    <string name="today_empty_subtitle">Создайте новый фазовый курс лечения или выберите другую дату в календаре</string>
+    <string name="today_create_course_cta">Создать курс лечения</string>
+    <string name="today_test_notification">Отправить тестовое уведомление</string>
+    <string name="today_notification_sent">Тестовое напоминание отправлено в шторку уведомлений</string>
+
+    <!-- Конструктор и редактирование курса -->
+    <string name="builder_title">Конструктор графика</string>
+    <string name="builder_edit_title">Редактирование курса</string>
+    <string name="builder_cancel_edit">Отменить редактирование (создать новый)</string>
+    <string name="builder_medication_name_label">Название препарата или процедуры</string>
+    <string name="builder_medication_name_placeholder">Например: Амоксициллин, Ингаляция с физраствором</string>
+    <string name="builder_notes_label">Комментарий к приему (необязательно)</string>
+    <string name="builder_notes_placeholder">Например: После еды, запивать теплой водой</string>
+    <string name="builder_form_section_title">Форма выпуска и единица дозировки</string>
+    <string name="builder_manage_forms">Справочник форм</string>
+    <string name="builder_start_date_label">Дата начала курса</string>
+    <string name="builder_change_date">Изменить дату</string>
+    <string name="builder_phases_section_title">Этапы (фазы) схемы приема</string>
+    <string name="builder_add_phase">+ Добавить этап</string>
+    <string name="builder_delete_phase">Удалить этап</string>
+    <string name="builder_phase_card_title">Фаза %1$d</string>
+    <string name="builder_phase_subtotal">Итого за фазу: %1$s %2$s (%3$d дн.)</string>
+    <string name="builder_duration_days">Длительность (дней)</string>
+    <string name="builder_frequency_per_day">Приемов в сутки</string>
+    <string name="builder_dose_per_intake">Доза за 1 прием (%1$s)</string>
+    <string name="builder_times_label">Время каждого приема (нажмите для изменения):</string>
+    <string name="builder_sticky_summary">Общая длительность: %1$d дней | Всего потребуется: %2$s %3$s</string>
+    <string name="builder_save_and_start">Сохранить и запустить напоминания</string>
+    <string name="builder_save_edit">Сохранить изменения курса</string>
+    <string name="builder_error_empty_name">Введите название препарата или процедуры</string>
+    <string name="builder_error_invalid_phases">Проверьте корректность длительности и дозировки во всех фазах</string>
+    <string name="builder_saved_toast">Курс сохранен, напоминания в AlarmManager запущены</string>
+
+    <!-- Справочник форм выпуска -->
+    <string name="forms_dialog_title">Справочник форм и единиц</string>
+    <string name="forms_name_field">Название формы (напр. Спрей)</string>
+    <string name="forms_unit_field">Ед. измерения (напр. впрыск.)</string>
+    <string name="forms_add_btn">Добавить в справочник</string>
+    <string name="forms_update_btn">Сохранить изменения</string>
+    <string name="forms_close_btn">Закрыть</string>
+
+    <!-- Экран Все курсы / История -->
+    <string name="courses_title">Все курсы и история</string>
+    <string name="courses_filter_all">Все (%1$d)</string>
+    <string name="courses_filter_active">Активные (%1$d)</string>
+    <string name="courses_filter_completed">Завершенные (%1$d)</string>
+    <string name="courses_status_active">Активен</string>
+    <string name="courses_status_completed">Завершен</string>
+    <string name="courses_edit">Редактировать курс</string>
+    <string name="courses_duplicate">Дублировать курс</string>
+    <string name="courses_complete_early">Завершить досрочно</string>
+    <string name="courses_reactivate">Возобновить курс</string>
+    <string name="courses_delete">Удалить курс</string>
+    <string name="courses_Empty">Список курсов пуст</string>
+
+    <!-- Экран Настройки -->
+    <string name="settings_title">Настройки и данные</string>
+    <string name="settings_update_card_title">Обновление приложения</string>
+    <string name="settings_update_card_desc">Автоматическая проверка и установка новых версий напрямую из официального репозитория GitHub (sibasyanya/pillbox) с полным сохранением базы данных.</string>
+    <string name="settings_check_update_btn">Проверить наличие обновлений</string>
+    <string name="settings_checking_update_btn">Проверка обновлений…</string>
+    <string name="settings_download_update_btn">Скачать и установить v%1$s</string>
+    <string name="settings_notifications_card_title">Уведомления и фоновый режим</string>
+    <string name="settings_notifications_card_desc">Для гарантированной доставки уведомлений в фоне и при выключенном экране используется приоритетный будильник (AlarmClock). Вы можете проверить работу пуша как мгновенно, так и в фоновом режиме с задержкой 10 секунд.</string>
+    <string name="settings_test_push_btn">Мгновенный тест пуш-уведомления</string>
+    <string name="settings_delayed_test_push_btn">Тест пуша в фоне (через 10 секунд)</string>
+    <string name="settings_reschedule_btn">Перепланировать будильники активных курсов</string>
+    <string name="settings_system_notif_btn">Настройки уведомлений и батареи</string>
+    <string name="settings_backup_card_title">Сохранение и перенос данных</string>
+    <string name="settings_backup_card_desc">Все курсы и отметки автоматически сохраняются в локальной базе данных устройства при обновлении приложения. Дополнительно можно выгрузить или загрузить резервную копию в формате JSON.</string>
+    <string name="settings_export_json_btn">Экспорт данных в JSON</string>
+    <string name="settings_import_json_btn">Импорт данных из JSON</string>
+    <string name="settings_forms_card_title">Справочник форм выпуска</string>
+    <string name="settings_forms_card_desc">Настройка доступных форм препаратов и процедур (таблетки, капли, инъекции и др.).</string>
+    <string name="settings_open_forms_btn">Открыть справочник форм</string>
+    <string name="settings_about_card_title">О приложении</string>
+
+    <!-- Уведомления -->
+    <string name="notif_channel_name">Напоминания о приеме лекарств</string>
+    <string name="notif_channel_desc">Точные звуковые уведомления по расписанию фаз курса лечения</string>
+    <string name="notif_title">Время приема: %1$s</string>
+    <string name="notif_body">Доза: %1$s %2$s • Фаза %3$d (%4$s)</string>
+    <string name="notif_action_taken">Принято</string>
+    <string name="notif_confirmed_toast">Прием «%1$s» отмечен как выполненный</string>
+</resources>

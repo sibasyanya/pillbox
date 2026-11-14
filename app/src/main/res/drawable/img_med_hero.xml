@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="360dp"
+    android:height="160dp"
+    android:viewportWidth="360"
+    android:viewportHeight="160">
+    <path android:pathData="M0,0h360v160h-360z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="0"
+                android:startY="0"
+                android:endX="360"
+                android:endY="160"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#0F766E" />
+                <item android:offset="0.6" android:color="#0D9488" />
+                <item android:offset="1.0" android:color="#115E59" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Мягкие фоновые круги без мелких деталей, чтобы не конфликтовать с текстом -->
+    <path
+        android:fillColor="#12FFFFFF"
+        android:pathData="M310,20m-80,0a80,80 0,1 1,160 0a80,80 0,1 1,-160 0" />
+    <path
+        android:fillColor="#0DFFFFFF"
+        android:pathData="M250,140m-65,0a65,65 0,1 1,130 0a65,65 0,1 1,-130 0" />
+</vector>

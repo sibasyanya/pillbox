@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Subtle outer schedule ring -->
+    <path
+        android:fillColor="#335EEAD4"
+        android:pathData="M54,24A30,30 0,1 1,24 54A30,30 0,0 1,54 24Z" />
+    <!-- Medical cross & capsule shield silhouette inside 66dp safe zone -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M50,32h8v18h18v8h-18v18h-8v-18h-18v-8h18z" />
+    <path
+        android:fillColor="#99F6E4"
+        android:pathData="M54,26c15.46,0 28,12.54 28,28s-12.54,28 -28,28s-28,-12.54 -28,-28S38.54,26 54,26M54,22c-17.67,0 -32,14.33 -32,32s14.33,32 32,32s32,-14.33 32,-32S71.67,22 54,22z" />
+</vector>

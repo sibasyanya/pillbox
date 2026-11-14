@@ -1,0 +1,6 @@
+{
+  "name": "Таблетница",
+  "description": "Приложение для учета фазового приема лекарств и медицинских процедур с калькулятором потребности и точными напоминаниями.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

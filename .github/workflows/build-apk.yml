@@ -1,0 +1,171 @@
+name: Build & Release APK
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build Release APK & Publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Prepare Signing Keystore (Consistent Upgrade Signature)
+        env:
+          CUSTOM_KEYSTORE_B64: ${{ secrets.KEYSTORE_BASE64 }}
+          CUSTOM_STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          CUSTOM_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -n "$CUSTOM_KEYSTORE_B64" ]; then
+            echo "$CUSTOM_KEYSTORE_B64" | base64 -d > my-upload-key.jks
+            echo "STORE_PASSWORD=${CUSTOM_STORE_PASSWORD}" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=${CUSTOM_KEY_PASSWORD}" >> $GITHUB_ENV
+          else
+            base64 -d debug.keystore.base64 > debug.keystore
+            rm -f my-upload-key.jks
+            keytool -importkeystore \
+              -srckeystore debug.keystore \
+              -srcstorepass android \
+              -srckeypass android \
+              -srcalias androiddebugkey \
+              -destkeystore my-upload-key.jks \
+              -deststoretype JKS \
+              -deststorepass android \
+              -destkeypass android \
+              -destalias upload \
+              -noprompt
+            echo "STORE_PASSWORD=android" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=android" >> $GITHUB_ENV
+          fi
+
+      - name: Grant execute permission for gradlew
+        run: |
+          if [ -f "./gradlew" ]; then
+            chmod +x gradlew
+          else
+            gradle wrapper
+            chmod +x gradlew
+          fi
+
+      - name: Assemble Release APK
+        run: ./gradlew assembleRelease --stacktrace
+
+      - name: Prepare Release Metadata & APK Name
+        id: meta
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+          else
+            VER=$(grep 'versionName = "' app/build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/')
+            TAG_NAME="v${VER}"
+          fi
+          APK_NAME="pillbox-${TAG_NAME}.apk"
+          cp app/build/outputs/apk/release/app-release.apk "${APK_NAME}"
+          echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
+          echo "apk_name=${APK_NAME}" >> $GITHUB_OUTPUT
+
+          # Извлекаем секцию текущей версии из CHANGELOG.md
+          VER_CLEAN="${TAG_NAME#v}"
+          NOTES=$(awk "/^## \[${VER_CLEAN}\]/{flag=1; next} /^## \[/{flag=0} flag" CHANGELOG.md)
+          if [ -z "$NOTES" ]; then
+            NOTES="Обновление приложения «Таблетница» (${TAG_NAME})."
+          fi
+          echo "$NOTES" > release_notes.md
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pillbox-release-apk
+          path: ${{ steps.meta.outputs.apk_name }}
+          retention-days: 30
+
+      - name: Publish GitHub Release Automatically on Sync
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag_name }}
+          name: "Таблетница ${{ steps.meta.outputs.tag_name }}"
+          body_path: release_notes.md
+          files: ${{ steps.meta.outputs.apk_name }}
+          draft: false
+          prerelease: false
+
+      - name: Send Telegram Release Notification
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_TOPIC_ID: ${{ secrets.TELEGRAM_TOPIC_ID }}
+          TAG_NAME: ${{ steps.meta.outputs.tag_name }}
+          APK_NAME: ${{ steps.meta.outputs.apk_name }}
+          REPO_NAME: ${{ github.repository }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "Telegram secrets (TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID) are not configured yet. Skipping Telegram notification."
+            exit 0
+          fi
+
+          python3 - << 'EOF'
+          import json
+          import os
+          import urllib.request
+
+          bot_token = os.environ["TELEGRAM_BOT_TOKEN"].strip()
+          chat_id = os.environ["TELEGRAM_CHAT_ID"].strip()
+          topic_id = os.environ.get("TELEGRAM_TOPIC_ID", "").strip()
+          tag = os.environ["TAG_NAME"].strip()
+          apk_name = os.environ["APK_NAME"].strip()
+          repo = os.environ["REPO_NAME"].strip()
+
+          with open("release_notes.md", "r", encoding="utf-8") as f:
+              notes = f.read().strip()
+
+          release_url = f"https://github.com/{repo}/releases/tag/{tag}"
+          apk_url = f"https://github.com/{repo}/releases/download/{tag}/{apk_name}"
+
+          text = (
+              f"💊 <b>Таблетница — обновление {tag}</b>\n\n"
+              f"{notes}\n\n"
+              f"📥 <a href=\"{apk_url}\">Скачать APK ({apk_name})</a>\n"
+              f"🔗 <a href=\"{release_url}\">Страница релиза на GitHub</a>\n\n"
+              f"<i>Также обновление доступно прямо внутри приложения («Настройки» → «Обновление приложения»).</i>"
+          )
+
+          payload = {
+              "chat_id": chat_id,
+              "text": text,
+              "parse_mode": "HTML",
+              "disable_web_page_preview": True,
+          }
+          if topic_id.isdigit():
+              payload["message_thread_id"] = int(topic_id)
+
+          req = urllib.request.Request(
+              f"https://api.telegram.org/bot{bot_token}/sendMessage",
+              data=json.dumps(payload).encode("utf-8"),
+              headers={"Content-Type": "application/json"},
+              method="POST",
+          )
+          with urllib.request.urlopen(req, timeout=15) as resp:
+              print("Telegram notification sent, status:", resp.status)
+          EOF
