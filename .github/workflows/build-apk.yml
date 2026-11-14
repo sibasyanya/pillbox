@@ -12,6 +12,9 @@ on:
 permissions:
   contents: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build-and-release:
     name: Build Release APK & Publish
@@ -23,26 +26,32 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up JDK 17 (Temurin)
-        uses: actions/setup-java@v4
+      - name: Set up JDK 21 (Temurin)
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
-      - name: Setup Gradle
+      - name: Setup Gradle 9.3.1
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
 
       - name: Prepare Signing Keystore (Consistent Upgrade Signature)
         env:
           CUSTOM_KEYSTORE_B64: ${{ secrets.KEYSTORE_BASE64 }}
           CUSTOM_STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           CUSTOM_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           if [ -n "$CUSTOM_KEYSTORE_B64" ]; then
             echo "$CUSTOM_KEYSTORE_B64" | base64 -d > my-upload-key.jks
+            cp my-upload-key.jks debug.keystore
             echo "STORE_PASSWORD=${CUSTOM_STORE_PASSWORD}" >> $GITHUB_ENV
             echo "KEY_PASSWORD=${CUSTOM_KEY_PASSWORD}" >> $GITHUB_ENV
-          else
+          elif [ -f "debug.keystore.base64" ]; then
             base64 -d debug.keystore.base64 > debug.keystore
             rm -f my-upload-key.jks
             keytool -importkeystore \
@@ -58,19 +67,156 @@ jobs:
               -noprompt
             echo "STORE_PASSWORD=android" >> $GITHUB_ENV
             echo "KEY_PASSWORD=android" >> $GITHUB_ENV
-          fi
-
-      - name: Grant execute permission for gradlew
-        run: |
-          if [ -f "./gradlew" ]; then
-            chmod +x gradlew
           else
-            gradle wrapper
-            chmod +x gradlew
+            python3 - << 'EOF'
+          import hashlib, base64, os
+
+          seed_material = (
+              os.environ.get("TELEGRAM_BOT_TOKEN", "") + ":" +
+              os.environ.get("TELEGRAM_CHAT_ID", "") + ":" +
+              os.environ.get("GITHUB_REPOSITORY", "sibasyanya/pillbox") +
+              ":pillbox-android-release-signing-v1"
+          ).encode("utf-8")
+          seed = hashlib.sha256(seed_material).digest()
+
+          def det_bytes(label: bytes, length: int) -> bytes:
+              out = bytearray()
+              counter = 0
+              while len(out) < length:
+                  out.extend(hashlib.sha256(seed + label + counter.to_bytes(4, "big")).digest())
+                  counter += 1
+              return bytes(out[:length])
+
+          def is_probable_prime(n: int) -> bool:
+              if n < 2 or n % 2 == 0:
+                  return n == 2
+              for p in [3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53]:
+                  if n % p == 0:
+                      return n == p
+              d, r = n - 1, 0
+              while d % 2 == 0:
+                  d //= 2
+                  r += 1
+              for a in [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37]:
+                  x = pow(a, d, n)
+                  if x == 1 or x == n - 1:
+                      continue
+                  for _ in range(r - 1):
+                      x = pow(x, 2, n)
+                      if x == n - 1:
+                          break
+                  else:
+                      return False
+              return True
+
+          def det_prime(label: bytes, bits: int = 1024) -> int:
+              idx = 0
+              while True:
+                  raw = int.from_bytes(det_bytes(label + idx.to_bytes(4, "big"), bits // 8), "big")
+                  raw |= (1 << (bits - 1)) | (1 << (bits - 2)) | 1
+                  if raw % 65537 != 1 and is_probable_prime(raw):
+                      return raw
+                  idx += 1
+
+          p = det_prime(b"prime_p", 1024)
+          q = det_prime(b"prime_q", 1024)
+          if p < q:
+              p, q = q, p
+          n = p * q
+          e = 65537
+          phi = (p - 1) * (q - 1)
+          d = pow(e, -1, phi)
+          dp, dq, qi = d % (p - 1), d % (q - 1), pow(q, -1, p)
+
+          def asn1_len(length: int) -> bytes:
+              if length < 0x80:
+                  return bytes([length])
+              b = length.to_bytes((length.bit_length() + 7) // 8, "big")
+              return bytes([0x80 | len(b)]) + b
+
+          def asn1_tlv(tag: int, body: bytes) -> bytes:
+              return bytes([tag]) + asn1_len(len(body)) + body
+
+          def asn1_seq(*items: bytes) -> bytes:
+              return asn1_tlv(0x30, b"".join(items))
+
+          def asn1_int(val: int) -> bytes:
+              length = max(1, (val.bit_length() + 8) // 8)
+              b = val.to_bytes(length, "big")
+              while len(b) > 1 and b[0] == 0 and (b[1] & 0x80) == 0:
+                  b = b[1:]
+              return asn1_tlv(0x02, b)
+
+          priv_der = asn1_seq(*(asn1_int(x) for x in [0, n, e, d, p, q, dp, dq, qi]))
+          with open("/tmp/pillbox_key.pem", "wb") as f:
+              f.write(b"-----BEGIN RSA PRIVATE KEY-----\n" + base64.encodebytes(priv_der) + b"-----END RSA PRIVATE KEY-----\n")
+
+          oid_sha256_rsa = bytes.fromhex("06092a864886f70d01010b0500")
+          alg_id_sha256_rsa = asn1_seq(oid_sha256_rsa)
+          oid_rsa = bytes.fromhex("06092a864886f70d0101010500")
+          pub_key_der = asn1_seq(asn1_int(n), asn1_int(e))
+          spki = asn1_seq(asn1_seq(oid_rsa), asn1_tlv(0x03, b"\x00" + pub_key_der))
+
+          oid_cn = bytes.fromhex("0603550403")
+          rdn_cn = asn1_tlv(0x31, asn1_seq(oid_cn, asn1_tlv(0x0c, b"Pillbox Release")))
+          name = asn1_seq(rdn_cn)
+
+          validity = asn1_seq(
+              asn1_tlv(0x17, b"250101000000Z"),
+              asn1_tlv(0x18, b"20550101000000Z"),
+          )
+
+          tbs_cert = asn1_seq(
+              asn1_tlv(0xa0, asn1_int(2)),
+              asn1_int(100001),
+              alg_id_sha256_rsa,
+              name,
+              validity,
+              name,
+              spki,
+          )
+
+          digest_info_prefix = bytes.fromhex("3031300d060960864801650304020105000420")
+          digest = hashlib.sha256(tbs_cert).digest()
+          em_body = digest_info_prefix + digest
+          ps_len = 256 - 3 - len(em_body)
+          em = b"\x00\x01" + (b"\xff" * ps_len) + b"\x00" + em_body
+          sig_int = pow(int.from_bytes(em, "big"), d, n)
+          sig_bytes = sig_int.to_bytes(256, "big")
+
+          cert_der = asn1_seq(tbs_cert, alg_id_sha256_rsa, asn1_tlv(0x03, b"\x00" + sig_bytes))
+          with open("/tmp/pillbox_cert.pem", "wb") as f:
+              f.write(b"-----BEGIN CERTIFICATE-----\n" + base64.encodebytes(cert_der) + b"-----END CERTIFICATE-----\n")
+          EOF
+            rm -f /tmp/pillbox.p12 my-upload-key.jks debug.keystore
+            openssl pkcs12 -export -in /tmp/pillbox_cert.pem -inkey /tmp/pillbox_key.pem -out /tmp/pillbox.p12 -name upload -passout pass:android
+            keytool -importkeystore \
+              -srckeystore /tmp/pillbox.p12 \
+              -srcstoretype PKCS12 \
+              -srcstorepass android \
+              -destkeystore my-upload-key.jks \
+              -deststoretype JKS \
+              -deststorepass android \
+              -destkeypass android \
+              -noprompt
+            keytool -importkeystore \
+              -srckeystore my-upload-key.jks \
+              -srcstorepass android \
+              -srckeypass android \
+              -srcalias upload \
+              -destkeystore debug.keystore \
+              -deststoretype JKS \
+              -deststorepass android \
+              -destkeypass android \
+              -destalias androiddebugkey \
+              -noprompt
+            rm -f /tmp/pillbox_key.pem /tmp/pillbox_cert.pem /tmp/pillbox.p12
+            echo "STORE_PASSWORD=android" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=android" >> $GITHUB_ENV
           fi
 
       - name: Assemble Release APK
-        run: ./gradlew assembleRelease --stacktrace
+        run: gradle assembleRelease --stacktrace
 
       - name: Prepare Release Metadata & APK Name
         id: meta
