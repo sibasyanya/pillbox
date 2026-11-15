@@ -246,6 +246,7 @@ class MedicationViewModel(
     }
 
     fun toggleIntakeTaken(item: ScheduledIntakeItem) {
+        val newTaken = !item.isTaken
         viewModelScope.launch(Dispatchers.IO) {
             repository.setIntakeTakenState(
                 courseId = item.courseId,
@@ -253,12 +254,24 @@ class MedicationViewModel(
                 scheduledTime = item.scheduledTime,
                 phaseNumber = item.phaseNumber,
                 doseAmount = item.dosePerIntake,
-                isTaken = !item.isTaken
+                isTaken = newTaken
             )
+            NotificationHelper.dismissIntakeNotificationAndCancelAlarm(
+                context = getApplication(),
+                courseId = item.courseId,
+                dateEpochDay = item.dateEpochDay,
+                scheduledTime = item.scheduledTime
+            )
+            if (!newTaken) {
+                repository.getCourseById(item.courseId)?.let { course ->
+                    NotificationHelper.scheduleCourseAlarms(getApplication(), course)
+                }
+            }
         }
     }
 
     fun toggleIntakeSkipped(item: ScheduledIntakeItem) {
+        val newSkipped = !item.isSkipped
         viewModelScope.launch(Dispatchers.IO) {
             repository.setIntakeSkippedState(
                 courseId = item.courseId,
@@ -266,8 +279,19 @@ class MedicationViewModel(
                 scheduledTime = item.scheduledTime,
                 phaseNumber = item.phaseNumber,
                 doseAmount = item.dosePerIntake,
-                isSkipped = !item.isSkipped
+                isSkipped = newSkipped
             )
+            NotificationHelper.dismissIntakeNotificationAndCancelAlarm(
+                context = getApplication(),
+                courseId = item.courseId,
+                dateEpochDay = item.dateEpochDay,
+                scheduledTime = item.scheduledTime
+            )
+            if (!newSkipped) {
+                repository.getCourseById(item.courseId)?.let { course ->
+                    NotificationHelper.scheduleCourseAlarms(getApplication(), course)
+                }
+            }
         }
     }
 
@@ -416,44 +440,9 @@ class MedicationViewModel(
         }
     }
 
-    fun triggerTestNotification(context: Context) {
-        val sampleItem = dailySchedule.value.firstOrNull()
-        viewModelScope.launch(Dispatchers.IO) {
-            if (sampleItem != null) {
-                NotificationHelper.showMedicationNotification(
-                    context = context,
-                    courseId = sampleItem.courseId,
-                    courseName = sampleItem.courseName,
-                    unitName = sampleItem.unitName,
-                    dateEpochDay = sampleItem.dateEpochDay,
-                    scheduledTime = sampleItem.scheduledTime,
-                    phaseNumber = sampleItem.phaseNumber,
-                    totalPhases = sampleItem.totalPhases,
-                    dayInPhase = sampleItem.dayInPhase,
-                    phaseDuration = sampleItem.phaseDurationDays,
-                    doseAmount = sampleItem.dosePerIntake
-                )
-            } else {
-                NotificationHelper.showMedicationNotification(
-                    context = context,
-                    courseId = 999L,
-                    courseName = "Тестовое напоминание",
-                    unitName = "таб.",
-                    dateEpochDay = LocalDate.now().toEpochDay(),
-                    scheduledTime = "08:00",
-                    phaseNumber = 1,
-                    totalPhases = 1,
-                    dayInPhase = 1,
-                    phaseDuration = 5,
-                    doseAmount = 1.0
-                )
-            }
-            _statusBannerMessage.value = "Тестовое напоминание отправлено в шторку уведомлений"
-        }
-    }
-
     fun triggerDelayedTestNotification(context: Context) {
-        val sampleItem = dailySchedule.value.firstOrNull()
+        val sampleItem = dailySchedule.value.firstOrNull { !it.isTaken && !it.isSkipped }
+            ?: dailySchedule.value.firstOrNull()
         viewModelScope.launch(Dispatchers.IO) {
             NotificationHelper.scheduleDelayedTestAlarm(
                 context = context,
@@ -461,7 +450,9 @@ class MedicationViewModel(
                 courseId = sampleItem?.courseId ?: 999_001L,
                 courseName = sampleItem?.courseName ?: "Проверка фонового приема",
                 unitName = sampleItem?.unitName ?: "таб.",
-                doseAmount = sampleItem?.dosePerIntake ?: 1.0
+                doseAmount = sampleItem?.dosePerIntake ?: 1.0,
+                scheduledTimeOverride = sampleItem?.scheduledTime,
+                dateEpochDayOverride = sampleItem?.dateEpochDay
             )
             _statusBannerMessage.value = "Будильник сработает через 10 сек. Сверните приложение для проверки!"
         }

@@ -57,25 +57,38 @@ class AlarmReceiver : BroadcastReceiver() {
         val phaseDuration = intent.getIntExtra(NotificationHelper.EXTRA_PHASE_DURATION, 1)
         val doseAmount = intent.getDoubleExtra(NotificationHelper.EXTRA_DOSE_AMOUNT, 1.0)
 
-        NotificationHelper.showMedicationNotification(
-            context = context,
-            courseId = courseId,
-            courseName = courseName,
-            unitName = unitName,
-            dateEpochDay = dateEpochDay,
-            scheduledTime = scheduledTime,
-            phaseNumber = phaseNumber,
-            totalPhases = totalPhases,
-            dayInPhase = dayInPhase,
-            phaseDuration = phaseDuration,
-            doseAmount = doseAmount
-        )
-
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val db = AppDatabase.getInstance(context)
-                val repository = MedicationRepository(db.medicationDao())
+                val dao = db.medicationDao()
+                val repository = MedicationRepository(dao)
+
+                // Для реального курса проверяем, не был ли этот прием уже отмечен в приложении заранее
+                val isTestAlarm = courseId == 999_001L
+                val existingRecord = if (!isTestAlarm) {
+                    dao.getIntakeRecord(courseId, dateEpochDay, scheduledTime)
+                } else {
+                    null
+                }
+                val alreadyHandled = existingRecord?.isTaken == true || existingRecord?.isSkipped == true
+
+                if (!alreadyHandled) {
+                    NotificationHelper.showMedicationNotification(
+                        context = context,
+                        courseId = courseId,
+                        courseName = courseName,
+                        unitName = unitName,
+                        dateEpochDay = dateEpochDay,
+                        scheduledTime = scheduledTime,
+                        phaseNumber = phaseNumber,
+                        totalPhases = totalPhases,
+                        dayInPhase = dayInPhase,
+                        phaseDuration = phaseDuration,
+                        doseAmount = doseAmount
+                    )
+                }
+
                 val course = repository.getCourseById(courseId)
                 if (course != null) {
                     NotificationHelper.scheduleCourseAlarms(context, course)

@@ -430,7 +430,6 @@ private fun SettingsTabContent(
         updateUiState = updateUiState,
         onCheckForUpdate = { viewModel.checkForAppUpdate(manual = true) },
         onDownloadAndInstallUpdate = { viewModel.downloadAndInstallUpdate(context) },
-        onTriggerTestNotification = { viewModel.triggerTestNotification(context) },
         onTriggerDelayedTestNotification = {
             viewModel.triggerDelayedTestNotification(context)
         },

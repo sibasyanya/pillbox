@@ -6,6 +6,8 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,10 +18,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AlarmOn
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
@@ -45,7 +49,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.example.BuildConfig
 import com.example.R
@@ -63,7 +69,6 @@ fun SettingsScreen(
     updateUiState: UpdateUiState,
     onCheckForUpdate: () -> Unit,
     onDownloadAndInstallUpdate: () -> Unit,
-    onTriggerTestNotification: () -> Unit,
     onTriggerDelayedTestNotification: () -> Unit,
     onRescheduleAlarms: () -> Unit,
     onExportJsonBackup: ((String) -> Unit) -> Unit,
@@ -268,20 +273,11 @@ fun SettingsScreen(
                     )
 
                     FastActionButton(
-                        text = stringResource(R.string.settings_test_push_btn),
-                        icon = Icons.Default.NotificationsActive,
-                        onClick = onTriggerTestNotification,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("test_notification_button")
-                    )
-
-                    FastActionButton(
                         text = stringResource(R.string.settings_delayed_test_push_btn),
                         icon = Icons.Default.Timer,
                         onClick = onTriggerDelayedTestNotification,
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("delayed_test_notification_button")
@@ -514,6 +510,65 @@ fun SettingsScreen(
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+
+                    val telegramUrl = stringResource(R.string.settings_about_telegram_url)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(UpdateStatusBoxShape)
+                            .background(
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                                UpdateStatusBoxShape
+                            )
+                            .border(
+                                1.dp,
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                                UpdateStatusBoxShape
+                            )
+                            .clickable(role = Role.Button) {
+                                try {
+                                    val intent = Intent(
+                                        Intent.ACTION_VIEW,
+                                        Uri.parse(telegramUrl)
+                                    ).apply {
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    context.startActivity(intent)
+                                } catch (_: Exception) {
+                                }
+                            }
+                            .padding(horizontal = 14.dp, vertical = 12.dp)
+                            .testTag("kiber_mastera_telegram_link"),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Send,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.settings_about_developer),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = telegramUrl,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary,
+                                textDecoration = TextDecoration.Underline
+                            )
+                        }
                     }
                 }
             }

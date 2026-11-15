@@ -140,6 +140,12 @@ object NotificationHelper {
         val title = context.getString(R.string.notif_title, courseName)
         val body = "Доза: $formattedDose $unitName • Фаза $phaseNumber из $totalPhases, день $dayInPhase из $phaseDuration ($scheduledTime)"
 
+        val extrasBundle = android.os.Bundle().apply {
+            putLong(EXTRA_COURSE_ID, courseId)
+            putLong(EXTRA_DATE_EPOCH_DAY, dateEpochDay)
+            putString(EXTRA_SCHEDULED_TIME, scheduledTime)
+        }
+
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle(title)
@@ -150,6 +156,7 @@ object NotificationHelper {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setAutoCancel(true)
             .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setExtras(extrasBundle)
             .setContentIntent(contentPendingIntent)
             .addAction(
                 android.R.drawable.checkbox_on_background,
@@ -166,6 +173,57 @@ object NotificationHelper {
     }
 
     /**
+     * Скрывает активное пуш-уведомление в шторке и отменяет ожидающий будильник для конкретного приема,
+     * когда пользователь отмечает прием («Принято» или «Не принято») внутри приложения.
+     */
+    fun dismissIntakeNotificationAndCancelAlarm(
+        context: Context,
+        courseId: Long,
+        dateEpochDay: Long,
+        scheduledTime: String
+    ) {
+        val notificationManagerCompat = NotificationManagerCompat.from(context)
+        val notificationId = computeNotificationId(courseId, dateEpochDay, scheduledTime)
+        notificationManagerCompat.cancel(notificationId)
+
+        // Дополнительно проверяем активные уведомления в статус-баре (включая тестовые или за другие минуты того же курса)
+        val sysNotificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+        val activeNotifications = sysNotificationManager?.activeNotifications
+        if (activeNotifications != null) {
+            for (sbn in activeNotifications) {
+                val extras = sbn.notification.extras
+                val notifCourseId = extras?.getLong(EXTRA_COURSE_ID, -1L) ?: -1L
+                val notifTime = extras?.getString(EXTRA_SCHEDULED_TIME)
+                if (sbn.id == notificationId ||
+                    (notifCourseId == courseId && (notifTime == null || notifTime == scheduledTime)) ||
+                    notifCourseId == 999_001L
+                ) {
+                    notificationManagerCompat.cancel(sbn.id)
+                }
+            }
+        }
+
+        // Отменяем запланированный будильник на это время, если пользователь отметил прием заранее
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
+        val requestCode = computeAlarmRequestCode(courseId, dateEpochDay, scheduledTime)
+        val alarmIntent = Intent(context, AlarmReceiver::class.java).apply {
+            action = ACTION_MEDICATION_REMINDER
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+        }
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            requestCode,
+            alarmIntent,
+            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+        )
+        if (pendingIntent != null) {
+            alarmManager.cancel(pendingIntent)
+            pendingIntent.cancel()
+        }
+    }
+
+    /**
      * Планирует тестовое напоминание через AlarmManager с задержкой (например, 10 секунд),
      * чтобы пользователь мог свернуть приложение и убедиться в приходе пуша в фоне.
      */
@@ -175,13 +233,15 @@ object NotificationHelper {
         courseId: Long = 999_001L,
         courseName: String = "Проверка фонового приема",
         unitName: String = "таб.",
-        doseAmount: Double = 1.0
+        doseAmount: Double = 1.0,
+        scheduledTimeOverride: String? = null,
+        dateEpochDayOverride: Long? = null
     ) {
         ensureNotificationChannel(context)
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
         val now = LocalDateTime.now()
-        val todayEpoch = now.toLocalDate().toEpochDay()
-        val scheduledTime = String.format(
+        val todayEpoch = dateEpochDayOverride ?: now.toLocalDate().toEpochDay()
+        val scheduledTime = scheduledTimeOverride ?: String.format(
             java.util.Locale.ROOT,
             "%02d:%02d",
             now.hour,
@@ -294,6 +354,16 @@ object NotificationHelper {
     }
 
     fun cancelCourseAlarms(context: Context, course: MedicationCourse) {
+        val notificationManagerCompat = NotificationManagerCompat.from(context)
+        val sysNotificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+        sysNotificationManager?.activeNotifications?.forEach { sbn ->
+            val notifCourseId = sbn.notification.extras?.getLong(EXTRA_COURSE_ID, -1L) ?: -1L
+            if (notifCourseId == course.id) {
+                notificationManagerCompat.cancel(sbn.id)
+            }
+        }
+
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
         val totalDays = course.totalDurationDays
         if (totalDays <= 0) return
@@ -306,6 +376,9 @@ object NotificationHelper {
         for (epochDay in startCancelDay..endCancelDay) {
             val resolution = MedicationRepository.resolvePhaseForDay(course, epochDay) ?: continue
             for (timeString in resolution.phase.intakeTimes) {
+                val notifId = computeNotificationId(course.id, epochDay, timeString)
+                notificationManagerCompat.cancel(notifId)
+
                 val requestCode = computeAlarmRequestCode(course.id, epochDay, timeString)
                 val alarmIntent = Intent(context, AlarmReceiver::class.java).apply {
                     action = ACTION_MEDICATION_REMINDER

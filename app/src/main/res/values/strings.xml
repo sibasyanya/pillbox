@@ -88,8 +88,7 @@
     <string name="settings_checking_update_btn">Проверка обновлений…</string>
     <string name="settings_download_update_btn">Скачать и установить v%1$s</string>
     <string name="settings_notifications_card_title">Уведомления и фоновый режим</string>
-    <string name="settings_notifications_card_desc">Для гарантированной доставки уведомлений в фоне и при выключенном экране используется приоритетный будильник (AlarmClock). Вы можете проверить работу пуша как мгновенно, так и в фоновом режиме с задержкой 10 секунд.</string>
-    <string name="settings_test_push_btn">Мгновенный тест пуш-уведомления</string>
+    <string name="settings_notifications_card_desc">Для гарантированной доставки уведомлений в фоне и при выключенном экране используется приоритетный будильник (AlarmClock). Вы можете проверить работу пуш-уведомления в фоновом режиме с задержкой 10 секунд.</string>
     <string name="settings_delayed_test_push_btn">Тест пуша в фоне (через 10 секунд)</string>
     <string name="settings_reschedule_btn">Перепланировать будильники активных курсов</string>
     <string name="settings_system_notif_btn">Настройки уведомлений и батареи</string>
@@ -101,6 +100,8 @@
     <string name="settings_forms_card_desc">Настройка доступных форм препаратов и процедур (таблетки, капли, инъекции и др.).</string>
     <string name="settings_open_forms_btn">Открыть справочник форм</string>
     <string name="settings_about_card_title">О приложении</string>
+    <string name="settings_about_developer">Разработано сообществом Кибер Мастера</string>
+    <string name="settings_about_telegram_url">https://t.me/kiber_mastera</string>
 
     <!-- Уведомления -->
     <string name="notif_channel_name">Напоминания о приеме лекарств</string>
